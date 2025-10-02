@@ -176,3 +176,33 @@ import pandas as pd
 
 
 sns.boxplot(data=data)
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+
+class person(BaseModel):
+  days_absent:int
+  likes_school:int
+  friends:int
+  average_mood:int
+  text:str
+
+@app.push("/")
+def func(iter:person):
+
+  my_data = {"days_absent":[iter.days_absent],"likes_school":[iter.likes_school],"friends":[iter.friends],"average_mood":[iter.average_mood],"text_":[1]}
+  my_df = pd.DataFrame(my_data)
+  my_df["text_vectorized"] = my_df["text_"].apply(lambda x: vector.transform([iter.text]))
+  my_df["no_school"] = my_df["text_vectorized"].apply(lambda i: mb.predict(i)[0])
+  X_new = my_df.drop(["text_vectorized"],axis=1)
+  X_new_scaled = std.transform(X_new)
+  # print(gbc.predict(X_new_scaled))
+  if gbc.predict(X_new_scaled) == 0: return f"you are most likely going to school",gbc.predict(X_new_scaled)
+  else: return f"you are most likely NOT going to school",gbc.predict(X_new_scaled)
+      
+
+
