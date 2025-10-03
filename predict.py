@@ -195,9 +195,9 @@ class person(BaseModel):
 def func(iter: person):
     my_data = {
         "days_absent": [iter.days_absent],
-        "likes_school": [iter.likes_school],
+        "likes_school: 0-10": [iter.likes_school],
         "friends": [iter.friends],
-        "average_mood": [iter.average_mood],
+        "average_mood: 0-10": [iter.average_mood],
         "text_": [1]
     }
     my_df = pd.DataFrame(my_data)
