@@ -150,7 +150,7 @@ x_scaled = std.fit_transform(x)
 x_train,x_test,y_train,y_test = train_test_split(x_scaled,y,random_state=42)
 
 
-gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0,   max_depth=4, random_state=42 )
+gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1,   max_depth=4, random_state=42 )
 
 gbc . fit(x_train,y_train)
 y_pred= gbc.predict(x_test)
