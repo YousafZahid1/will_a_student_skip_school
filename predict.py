@@ -17,6 +17,8 @@ import seaborn as sns
 from fastapi import FastAPI
 from pydantic import BaseModel
 import lightgbm as lgb
+import tkinter as tk
+from tkinter import messagebox
 
 text = [
     "I like PE",
@@ -145,3 +147,58 @@ def func(iter: person):
     my_df = pd.DataFrame(my_data)
     store = pipeline.predict(my_df)
     return {"will_skip": int(store[0])}
+
+def predict_skip(days_absent, likes_school, friends, average_mood, text):
+    my_data = {
+        "days_absent": [days_absent],
+        "likes_school": [likes_school],
+        "friends": [friends],
+        "average_mood": [average_mood],
+        "text": [text]
+    }
+    my_df = pd.DataFrame(my_data)
+    store = pipeline.predict(my_df)
+    return store[0]
+
+def show_result():
+    try:
+        days_absent = int(entry_days_absent.get())
+        likes_school = int(entry_likes_school.get())
+        friends = int(entry_friends.get())
+        average_mood = int(entry_average_mood.get())
+        text = entry_text.get("1.0", tk.END)
+        result = predict_skip(days_absent, likes_school, friends, average_mood, text)
+        if result == 1:
+            messagebox.showinfo("Prediction", "The student is likely to skip school.")
+        else:
+            messagebox.showinfo("Prediction", "The student is not likely to skip school.")
+    except ValueError:
+        messagebox.showerror("Error", "Please fill in all fields correctly.")
+
+root = tk.Tk()
+root.title("Student Skip School Prediction")
+
+tk.Label(root, text="Days Absent").grid(row=0, column=0)
+entry_days_absent = tk.Entry(root)
+entry_days_absent.grid(row=0, column=1)
+
+tk.Label(root, text="Likes School").grid(row=1, column=0)
+entry_likes_school = tk.Entry(root)
+entry_likes_school.grid(row=1, column=1)
+
+tk.Label(root, text="Friends").grid(row=2, column=0)
+entry_friends = tk.Entry(root)
+entry_friends.grid(row=2, column=1)
+
+tk.Label(root, text="Average Mood").grid(row=3, column=0)
+entry_average_mood = tk.Entry(root)
+entry_average_mood.grid(row=3, column=1)
+
+tk.Label(root, text="Text").grid(row=4, column=0)
+entry_text = tk.Text(root, height=5, width=20)
+entry_text.grid(row=4, column=1)
+
+predict_button = tk.Button(root, text="Predict", command=show_result)
+predict_button.grid(row=5, column=0, columnspan=2)
+
+root.mainloop()
