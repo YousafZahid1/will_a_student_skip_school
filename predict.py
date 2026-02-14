@@ -1,24 +1,22 @@
-
 #Create Data
 # - Covert DataBase
 # - predict if someone will go to school tomorow
 # if no send a message to the teacher saying no!
 
 
-import matplotlib.pyplot as plt
-
-# trained on synthetic very small data
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_curve,auc
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix,consensus_score,classification_report
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import roc_curve, auc
+import matplotlib.pyplot as plt
+import seaborn as sns
+from fastapi import FastAPI
+from pydantic import BaseModel
+import lightgbm as lgb
 
 text = [
     "I like PE",
@@ -73,7 +71,6 @@ text = [
     "I don’t like sitting in class all day"
 ]
 
-
 y_data = [
     0,1,0,1,0,1,0,1,0,1,
     0,1,0,1,0,1,0,1,0,1,
@@ -82,107 +79,52 @@ y_data = [
     0,1,0,1,0,1,0,1,0,1
 ]
 
-
-
-
-
-vector = CountVectorizer()
-
-
-data_x = vector.fit_transform(text)
-
-
-#Logistic Regression or use multinomial nb
-mb = MultinomialNB()
-
-x_train,x_test,y_train,y_test = train_test_split( data_x , y_data, random_state=42)
-
-
-
-mb.fit(x_train,y_train)
-
-# ww= vector.transform(["school is fun"])
-# y_pred = mb.predict(x_test)
-# print(accuracy_score(y_pred,y_test))
-# print(mb.predict(ww))
-
-
-
 data = {
     "days_absent": np.random.randint(0,50,100),
     "likes_school": np.random.randint(1,10,100),
     "friends": np.random.randint(0,20,100),
     "average_mood": np.random.randint(0,10,100),
-    "text_" : np.random.randint(0,len(text),100),
-
-
-
+    "text" : text * 2
 }
 df = pd.DataFrame(data)
 
+y = np.random.randint(0,2,100)
 
-df["text_vectorized"] = df["text_"].apply(lambda x: vector.transform([text[x]]))
+numeric_features = ["days_absent", "likes_school", "friends", "average_mood"]
+numeric_transformer = StandardScaler()
 
-df["no_school"] = df["text_vectorized"].apply(lambda i: mb.predict(i)[0])
-model = LogisticRegression()
+text_features = "text"
+text_transformer = TfidfVectorizer()
 
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, numeric_features),
+        ("text", text_transformer, text_features),
+    ]
+)
 
+pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", lgb.LGBMClassifier())
+])
 
+pipeline.fit(df, y)
 
-# for i in range(len(df["text_"])):
-#   df.loc[i,"op"] = model.predict(vector.transform(df["text_"][i]))
-
-
-
-
-df["will_skip"] = ((  df["days_absent"]>10).astype(int) + (df["likes_school"]<8).astype(int) + (df["friends"]<4).astype(int) + (df["average_mood"] < 6).astype(int)  + (df["no_school"] > 0) .astype(int) )
-df["will_skip"] = (df["will_skip"]>2).astype(int)
-
-
-x  = df.drop(["will_skip", "text_vectorized"] ,axis=1)
-y = df["will_skip"]
-
-
-std = StandardScaler()
-
-x_scaled = std.fit_transform(x)
-
-x_train,x_test,y_train,y_test = train_test_split(x_scaled,y,random_state=42)
-
-
-gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1,   max_depth=4, random_state=42 )
-
-gbc . fit(x_train,y_train)
-y_pred= gbc.predict(x_test)
-gbc.score(x_test,y_test)
-
-y_test_prob = gbc.predict_proba(x_test)[:,1]
-fpr,tpr,value = roc_curve(y_test,y_test_prob)
+y_pred = pipeline.predict(df)
+y_test_prob = pipeline.predict_proba(df)[:,1]
+fpr,tpr,value = roc_curve(y, y_test_prob)
 
 plt.plot([0,1],[0,1],'--',color="gray" , label="line")
-
 plt.plot(fpr,tpr,label ="matrix", color="orange")
 plt.xlabel("x-axis")
 plt.ylabel("y-axis")
 plt.legend()
 plt.title("ROC- CURVE")
-
-# boxplot
-import seaborn as sns
-
 plt.show()
 
-import pandas as pd
-
-
-sns.boxplot(data=data)
-
-from fastapi import FastAPI
-from pydantic import BaseModel
+sns.boxplot(data=df[numeric_features])
 
 app = FastAPI()
-
-
 
 class person(BaseModel):
   days_absent:int
@@ -195,18 +137,11 @@ class person(BaseModel):
 def func(iter: person):
     my_data = {
         "days_absent": [iter.days_absent],
-        "likes_school: 0-10": [iter.likes_school],
+        "likes_school": [iter.likes_school],
         "friends": [iter.friends],
-        "average_mood: 0-10": [iter.average_mood],
-        "text_": [1]
+        "average_mood": [iter.average_mood],
+        "text": [iter.text]
     }
     my_df = pd.DataFrame(my_data)
-    my_df["text_vectorized"] = my_df["text_"].apply(lambda x: vector.transform([iter.text]))
-    my_df["no_school"] = my_df["text_vectorized"].apply(lambda i: mb.predict(i)[0])
-    
-
-    X_new = my_df.drop(["text_vectorized"], axis=1)
-    X_new_scaled = std.transform(X_new)
-
-    store = gbc.predict(X_new_scaled)
+    store = pipeline.predict(my_df)
     return {"will_skip": int(store[0])}
